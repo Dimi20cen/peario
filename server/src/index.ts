@@ -135,11 +135,17 @@ function heartbeat({ client }: ClientEvent) {
 }
 
 setInterval(() => {
-    roomManager.rooms = roomManager.rooms.map(room => {
-        const tmp_users = room.users;
-        room.users = room.users.filter(user => wss.clients.find(client => client.id === user.id));
+    roomManager.rooms = roomManager.rooms
+        .map(room => {
+            const tmp_users = room.users;
+            room.users = room.users.filter(user => wss.clients.find(client => client.id === user.id));
 
-        if (JSON.stringify(room.users) !== JSON.stringify(tmp_users)) wss.sendToRoomClients(room.id, new SyncEvent(room));
-        return room;
-    });
+            if (JSON.stringify(room.users) !== JSON.stringify(tmp_users)) wss.sendToRoomClients(room.id, new SyncEvent(room));
+            return room;
+        })
+        // Once every user has left (and stayed gone for a full sweep, giving a
+        // refreshing client time to reconnect and rejoin first), drop the room
+        // entirely - otherwise rooms.length only ever grows for the life of the
+        // process, since nothing else ever removes a room.
+        .filter(room => room.users.length > 0);
 }, INTERVAL_ROOM_UPDATE);
