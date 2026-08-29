@@ -13,6 +13,12 @@ interface ClientUserUpdate extends ClientEvent {
     }
 }
 
+interface ClientIdentify extends ClientEvent {
+    payload: {
+        id: string;
+    }
+}
+
 interface ClientNewRoom extends ClientEvent {
     payload: {
         meta: Meta;
@@ -45,6 +51,7 @@ interface ClientSync extends ClientEvent {
 export {
     ClientEvent,
     ClientUserUpdate,
+    ClientIdentify,
     ClientNewRoom,
     CientJoinRoom,
     ClientMessage,

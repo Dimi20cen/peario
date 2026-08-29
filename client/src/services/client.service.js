@@ -1,4 +1,6 @@
 import { EventEmitter } from 'events';
+import hat from 'hat';
+import StorageService from '@/services/storage.service';
 
 const ClientService = {
 
@@ -9,13 +11,26 @@ const ClientService = {
     connect(url) {
         this.socket = new WebSocket(url);
         this.socket.onopen = this._handleOpen.bind(this);
-        this.socket.onclose = this.events.emit('closed');
+        this.socket.onclose = () => this.events.emit('closed');
         this.socket.onmessage = this._handleMessage.bind(this);
     },
 
     _handleOpen() {
         this.events.emit('opened');
+        // Persisted across reloads so a refresh reconnects as the same
+        // identity - otherwise the server can't tell a refreshing room owner
+        // apart from a brand new guest, and ownership is lost on refresh.
+        this.send('client.identify', { id: this.getClientId() });
         this.heartbeat = setInterval(() => this.send('heartbeat', {}), 2000);
+    },
+
+    getClientId() {
+        let id = StorageService.get('client.id');
+        if (!id) {
+            id = hat();
+            StorageService.set('client.id', id);
+        }
+        return id;
     },
 
     _handleMessage(msg) {

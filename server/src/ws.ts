@@ -17,6 +17,7 @@ class WS {
             const client = new Client(socket);
             client.sendEvent(new ReadyEvent(new User(client)));
             client.onMessage((data: string) => this.handleEvents(client, data));
+            socket.on('close', () => this.removeClient(client));
             this.clients.push(client);
             console.log('New client:', client.id, client.name);
         });
@@ -33,6 +34,11 @@ class WS {
         } catch(e) {
             console.error('Error while parsing event');
         }
+    }
+
+    public removeClient(client: Client) {
+        this.clients = this.clients.filter(c => c !== client);
+        this.events.emit('client.disconnected', <ClientEvent>{ client, payload: {} });
     }
 
     public getClientsByRoomId(room_id: string) {

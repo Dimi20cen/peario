@@ -2,7 +2,7 @@ import fs from 'fs';
 import https from 'https';
 import WS from './ws';
 import { PORT, PEM_CERT, PEM_KEY, INTERVAL_CLIENT_CHECK, INTERVAL_ROOM_UPDATE } from './common/config';
-import { ClientEvent, ClientNewRoom, CientJoinRoom, ClientMessage, ClientSync, ClientUserUpdate, ClientUpdateOwnership } from './shared/events/client';
+import { ClientEvent, ClientIdentify, ClientNewRoom, CientJoinRoom, ClientMessage, ClientSync, ClientUserUpdate, ClientUpdateOwnership } from './shared/events/client';
 import { RoomEvent, SyncEvent, MessageEvent, ErrorEvent, UserEvent } from './shared/events/server';
 import RoomManager from './room';
 import { User } from './shared';
@@ -20,6 +20,8 @@ console.log(`Listening on port ${PORT}`);
 const wss = new WS(server, INTERVAL_CLIENT_CHECK);
 const roomManager = new RoomManager();
 
+wss.events.on('client.identify', identifyClient);
+wss.events.on('client.disconnected', onClientDisconnected);
 wss.events.on('user.update', updateUser);
 wss.events.on('room.new', createRoom);
 wss.events.on('room.join', joinRoom);
@@ -27,6 +29,33 @@ wss.events.on('room.message', messageRoom);
 wss.events.on('room.updateOwnership', updateRoomOwnership);
 wss.events.on('player.sync', syncPlayer);
 wss.events.on('heartbeat', heartbeat);
+
+function identifyClient({ client, payload }: ClientIdentify) {
+    const { id } = payload;
+
+    // Adopt the client's own persisted id so a page refresh reconnects as the
+    // same identity instead of a random new one - otherwise a refreshing room
+    // owner loses ownership, since `room.owner === client.id` stops matching.
+    if (typeof id === 'string' && id.length > 0) {
+        client.id = id;
+        client.name = `Guest${id.slice(0, 4)}`;
+
+        // The client already has its old (pre-identify) id from the initial
+        // ReadyEvent sent at connection time, before this message was even
+        // processed. Without telling it about the swap, its own view of
+        // "who am I" never matches room.owner, and every client - not just
+        // ones that reconnected - would fail the ownership check.
+        client.sendEvent(new UserEvent(new User(client)));
+    }
+}
+
+function onClientDisconnected({ client }: ClientEvent) {
+    const room = roomManager.getClientRoom(client);
+    if (!room) return;
+
+    room.users = room.users.filter(({ id }) => id !== client.id);
+    wss.sendToRoomClients(room.id, new SyncEvent(room));
+}
 
 function updateUser({ client, payload }: ClientUserUpdate) {
     const { username } = payload;
