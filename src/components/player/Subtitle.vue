@@ -53,10 +53,25 @@ export default {
     text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
     white-space: pre-line;
     text-align: center;
-    transition: all 0.1s ease-in-out;
+
+    // Explicit z-index (also see the video's own compositing note in
+    // Player.vue) keeps this above both the video and the controls bar even
+    // if it ends up overlapping either one; pointer-events is disabled so it
+    // never blocks clicks on whatever's underneath (the time bar, buttons)
+    // where that happens.
+    z-index: 1;
+    pointer-events: none;
+    transform: translateZ(0);
+    isolation: isolate;
+    transition: bottom 0.1s ease-in-out;
 
     &.controls-shown {
-        bottom: calc(#{$player-controls-height} + 1rem);
+        // $player-controls-height is the whole bar's box, but its actual content
+        // (icons, time-bar) is vertically centered within it, not full-height -
+        // clearing half the bar plus a margin pushes the subtitle above the
+        // actual controls without pushing multi-line subtitles further up into
+        // frame than needed.
+        bottom: calc(#{$player-controls-height} / 2 + 1rem);
     }
 
     &.small {

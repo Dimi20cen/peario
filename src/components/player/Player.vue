@@ -181,6 +181,14 @@ $overlay-background-color: rgba(0, 0, 0, 0.5);
         width: 100%;
         outline: none;
         align-self: center;
+
+        // In real fullscreen, once idle, Chromium can promote a playing <video>
+        // to a hardware/OS-compositor overlay plane that bypasses the normal DOM
+        // paint pipeline entirely - no z-index on sibling overlays (subtitles,
+        // controls) can win against that, since they're not in the same
+        // compositing tree anymore. A no-op filter disqualifies the video from
+        // that fast path, keeping it in normal layered compositing.
+        filter: brightness(1);
     }
 
     .controls {
