@@ -55,13 +55,18 @@ const StremioService = {
     async getSubtitles({ type, id, url }) {
         try {
             const { hash } = await getOpenSubInfo(url);
-            return queryOpenSubtitles({
-                type,
-                id,
-                videoHash: hash,
-            });
-        } catch(_) {
-            return [];
+            return await queryOpenSubtitles({ type, id, videoHash: hash });
+        } catch(err) {
+            // The local streaming server's /opensubHash often can't be reached
+            // (blocked by its own CORS policy for this origin), so fall back to
+            // a hash-less lookup instead of silently returning no subtitles.
+            console.error('Falling back to hash-less subtitle search:', err);
+            try {
+                return await queryOpenSubtitles({ type, id });
+            } catch (fallbackErr) {
+                console.error('Subtitle search failed:', fallbackErr);
+                return [];
+            }
         }
     }
 
@@ -74,7 +79,8 @@ async function getOpenSubInfo(streamUrl) {
 }
 
 async function queryOpenSubtitles({ type, id, videoHash }) {
-    const { data } = await axios.get(`${OPENSUBTITLES_URL}/subtitles/${type}/${id}/videoHash=${videoHash}.json`);
+    const path = videoHash ? `${type}/${id}/videoHash=${videoHash}` : `${type}/${id}`;
+    const { data } = await axios.get(`${OPENSUBTITLES_URL}/subtitles/${path}.json`);
     const { subtitles } = data;
     return subtitles;
 }

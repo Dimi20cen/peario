@@ -33,7 +33,7 @@ export default {
         },
         current(subtitle) {
             if (subtitle) {
-                if (subtitle.url) SubtitleService.set(subtitle.url);
+                if (subtitle.url) SubtitleService.set(subtitle.url).catch(() => {});
                 else if (subtitle.data) SubtitleService.setCustom(subtitle.data);
             }
         }
