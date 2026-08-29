@@ -1,6 +1,6 @@
 import { config } from 'dotenv';
 
-config();
+config({ quiet: true });
 
 export const PORT = process.env.PORT as unknown as number;
 export const PEM_CERT = process.env.PEM_CERT as unknown as string;
