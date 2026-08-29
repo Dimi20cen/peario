@@ -76,6 +76,19 @@ function createClient(catchReady = true) {
                 });
             });
         };
+
+        client.identify = (id) => {
+            return new Promise((resolve) => {
+                client.once('event', (type, payload) => {
+                    if (type === 'user') {
+                        client.id = payload.user.id;
+                        resolve(payload.user);
+                    }
+                });
+
+                client.sendEvent('client.identify', { id });
+            });
+        };
     });
 }
 
@@ -332,6 +345,62 @@ describe('Client', function() {
                             });
 
                             client.sendEvent('player.sync', playerUpdate);
+                        });
+                    });
+                });
+            });
+        });
+    });
+
+    it('should keep room ownership when reconnecting with the same identity', (done) => {
+        const persistedId = 'persisted-owner-id';
+
+        createClient().then((client) => {
+            client.identify(persistedId).then(() => {
+                client.createRoom().then(({ id }) => {
+                    client.joinRoom(id).then((syncPayload) => {
+                        assert.strictEqual(syncPayload.owner, persistedId);
+
+                        // simulate a page refresh: the old connection drops and a
+                        // brand new one reconnects, re-identifying with the same
+                        // persisted id and rejoining the same room
+                        client.close();
+
+                        createClient().then((reconnected) => {
+                            reconnected.identify(persistedId).then(() => {
+                                reconnected.joinRoom(id).then((resyncPayload) => {
+                                    assert.strictEqual(resyncPayload.owner, persistedId);
+                                    assert.strictEqual(reconnected.id, persistedId);
+
+                                    reconnected.close();
+                                    done();
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
+
+    it('should remove a disconnected client from the room immediately', (done) => {
+        createClient().then((client) => {
+            createClient().then((otherClient) => {
+                client.createRoom().then(({ id }) => {
+                    client.joinRoom(id).then(() => {
+                        otherClient.joinRoom(id).then((syncPayload) => {
+                            assert.strictEqual(syncPayload.users.length, 2);
+
+                            otherClient.once('event', (type, payload) => {
+                                assert.strictEqual(type, 'sync');
+                                assert.strictEqual(payload.users.length, 1);
+                                assert.strictEqual(payload.users.some(({ id }) => id === client.id), false);
+
+                                otherClient.close();
+                                done();
+                            });
+
+                            client.close();
                         });
                     });
                 });
