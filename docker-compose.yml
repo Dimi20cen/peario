@@ -20,7 +20,7 @@ services:
         VUE_APP_WS_SERVER: ${VUE_APP_WS_SERVER}
         VUE_APP_TITLE: ${VUE_APP_TITLE}
     ports:
-      - "8090:80"
+      - "127.0.0.1:8090:80"
     depends_on:
       - server
     restart: unless-stopped
