@@ -1,4 +1,4 @@
-import { Client, User, Room, RoomOptions } from "./shared";
+import { Client, User, Room, RoomOptions, generateRoomId } from "./shared";
 
 class RoomManager {
 
@@ -9,7 +9,7 @@ class RoomManager {
     }
 
     _find(room_id: string) {
-        return this.rooms.find(({ id }) => id === room_id);
+        return this.rooms.find(({ id }) => id === (room_id || '').toUpperCase());
     }
 
     public getClientRoom(client: Client) {
@@ -18,6 +18,10 @@ class RoomManager {
 
     public create(client: Client, options: RoomOptions) {
         const room = new Room(options);
+        while (this.rooms.some(({ id }) => id === room.id)) {
+            room.id = generateRoomId();
+        }
+
         room.owner = client.id;
         this.rooms.push(room);
         return room;

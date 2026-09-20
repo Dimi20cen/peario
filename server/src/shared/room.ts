@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from 'uuid';
 import User from "./user";
 import Stream from "./stream";
 import Player from "./player";
@@ -7,6 +6,19 @@ import Meta from "./meta";
 interface RoomOptions {
     meta: Meta;
     stream: Stream;
+}
+
+// Excludes visually ambiguous characters (0/O, 1/I/L) so codes are easy to
+// read aloud and type on a phone.
+const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const CODE_LENGTH = 4;
+
+function generateRoomId(): string {
+    let id = '';
+    for (let i = 0; i < CODE_LENGTH; i++) {
+        id += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+    }
+    return id;
 }
 
 class Room {
@@ -18,7 +30,7 @@ class Room {
     public owner?: string;
 
     constructor(options: RoomOptions) {
-        this.id = uuidv4();
+        this.id = generateRoomId();
         this.stream = new Stream(options.stream);
         this.meta = new Meta(options.meta);
         this.player = new Player();
@@ -28,5 +40,6 @@ class Room {
 
 export {
     Room,
-    RoomOptions
+    RoomOptions,
+    generateRoomId
 };

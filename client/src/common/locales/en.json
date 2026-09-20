@@ -3,7 +3,11 @@
         "home": {
             "title": "Share your streams",
             "sub": "Peario allows you to watch {0} streams with your friends.",
-            "button": "Create a room"
+            "button": "Create a room",
+            "join": {
+                "title": "Or join a room with a code",
+                "placeholder": "Room code"
+            }
         },
         "search": {
             "title": "Search",

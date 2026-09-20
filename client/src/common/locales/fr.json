@@ -3,7 +3,11 @@
         "home": {
             "title": "Partagez vos streams",
             "sub": "Peario vous permet de regarder des streams {0} avec vos amis.",
-            "button": "Créer une salle"
+            "button": "Créer une salle",
+            "join": {
+                "title": "Ou rejoignez une salle avec un code",
+                "placeholder": "Code de la salle"
+            }
         },
         "search": {
             "title": "Recherche",

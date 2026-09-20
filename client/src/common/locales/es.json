@@ -3,7 +3,11 @@
         "home": {
             "title": "Comparte tus corrientes",
             "sub": "Peario te permite ver los streams de {0} con tus amigos.",
-            "button": "Cree una sala"
+            "button": "Cree una sala",
+            "join": {
+                "title": "O únete a una sala con un código",
+                "placeholder": "Código de la sala"
+            }
         },
         "search": {
             "title": "Busca en",

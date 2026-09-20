@@ -3,7 +3,11 @@
         "home": {
             "title": "Akışlarınızı paylaşın",
             "sub": "Peario, arkadaşlarınızla {0} yayınlarını izlemenizi sağlar.",
-            "button": "Bir oda oluştur"
+            "button": "Bir oda oluştur",
+            "join": {
+                "title": "Veya bir kodla odaya katıl",
+                "placeholder": "Oda kodu"
+            }
         },
         "search": {
             "title": "Arama",

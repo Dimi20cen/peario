@@ -3,7 +3,7 @@ import Client from './client';
 import Player from './player';
 import Meta from './meta';
 import Stream from './stream';
-import { Room, RoomOptions } from './room';
+import { Room, RoomOptions, generateRoomId } from './room';
 
 export {
     User,
@@ -12,5 +12,6 @@ export {
     Meta,
     Stream,
     Room,
-    RoomOptions
+    RoomOptions,
+    generateRoomId
 };
