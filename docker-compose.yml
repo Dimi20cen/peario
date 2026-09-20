@@ -1,0 +1,26 @@
+services:
+  server:
+    build: ./server
+    ports:
+      - "8181:8181"
+    environment:
+      PORT: 8181
+      PEM_CERT: /app/cert/tailscale.crt
+      PEM_KEY: /app/cert/tailscale.key
+      INTERVAL_CLIENT_CHECK: 3000
+      INTERVAL_ROOM_UPDATE: 600000
+    volumes:
+      - ./server/cert:/app/cert:ro
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ./client
+      args:
+        VUE_APP_WS_SERVER: ${VUE_APP_WS_SERVER}
+        VUE_APP_TITLE: ${VUE_APP_TITLE}
+    ports:
+      - "8090:80"
+    depends_on:
+      - server
+    restart: unless-stopped
