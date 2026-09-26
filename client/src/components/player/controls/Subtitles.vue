@@ -22,11 +22,15 @@
                     </List>
                 </div>
 
-                <div class="loading" v-if="!langs.length">
+                <div class="loading" v-if="loading">
                     <ion-icon name="sync-outline" class="spin"></ion-icon>
                 </div>
-                
-                <div class="lists">
+
+                <div class="loading" v-else-if="!langs.length">
+                    {{ $t('components.player.noSubtitles') }}
+                </div>
+
+                <div class="lists" v-else>
                     <List class="langs" small v-model="panelLang" :items="langs" itemKey="iso">
                         <template #left="{ item }">
                             {{ item.local }}
@@ -76,12 +80,18 @@ export default {
             panelLang: null,
             list: [],
             localeLang: (this.$i18n && this.$i18n.locale) || 'en',
-            langs: []
+            langs: [],
+            loading: true
         };
     },
     watch: {
         list() {
             this.langs = this.extractLangs(this.list);
+
+            if (!this.list.length) {
+                this.panelLang = null;
+                return;
+            }
 
             const isCurrentUser = this.panelLang && this.panelLang.iso === 'user';
             const current = this.list.find(s => isCurrentUser ? s.lang === 'user' : s.lang.startsWith(this.localeLang)) || this.list[0];
@@ -125,6 +135,8 @@ export default {
             this.activePanel = !this.activePanel;
         },
         fetchSubtitles() {
+            this.loading = true;
+
             const addToList = subtitles => {
                 this.list.push(...subtitles);
 
@@ -132,15 +144,19 @@ export default {
                 this.list = urls.map(url => this.list.find(sub => sub.url === url));
             };
 
-            StremioService.getSubtitles({
+            const stremioFetch = StremioService.getSubtitles({
                 type: this.meta.type,
                 id: this.meta.id,
                 url: this.videoUrl,
             }).then(stremioSubtitles => addToList(stremioSubtitles));
 
-            this.installedSubtitles
+            const addonFetches = this.installedSubtitles
                 .map(addon => AddonService.getSubtitles([addon], this.meta.type, this.meta.id)
                 .then(addonsSubtitles => addToList(addonsSubtitles)));
+
+            Promise.all([stremioFetch, ...addonFetches]).finally(() => {
+                this.loading = false;
+            });
         },
         filterSubs() {
             return this.panelLang ? this.list.filter(s => s.lang === this.panelLang.iso) : [];

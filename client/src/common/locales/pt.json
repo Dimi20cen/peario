@@ -33,7 +33,8 @@
             "ready": "PRONTO",
             "autoSync": "Auto-Sync",
             "subtitle": "Subtítulo",
-            "share": "Pode agora partilhar este link com os seus amigos:"
+            "share": "Pode agora partilhar este link com os seus amigos:",
+            "noSubtitles": "Nenhuma legenda encontrada"
         },
         "settings": {
             "title": "Parâmetros",

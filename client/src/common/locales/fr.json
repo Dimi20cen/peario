@@ -33,7 +33,8 @@
             "ready": "C'EST PARTI",
             "autoSync": "Auto-Syncro",
             "subtitle": "Sous-Titre",
-            "share": "Vous pouvez maintenant partager ce lien avec vos amis:"
+            "share": "Vous pouvez maintenant partager ce lien avec vos amis:",
+            "noSubtitles": "Aucun sous-titre trouvé"
         },
         "settings": {
             "title": "Paramètres",

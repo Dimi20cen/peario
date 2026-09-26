@@ -33,7 +33,8 @@
             "ready": "HAZIR",
             "autoSync": "Otomatik Eşitleme",
             "subtitle": "Alt yazı",
-            "share": "Artık bu bağlantıyı arkadaşlarınızla paylaşabilirsiniz:"
+            "share": "Artık bu bağlantıyı arkadaşlarınızla paylaşabilirsiniz:",
+            "noSubtitles": "Altyazı bulunamadı"
         },
         "settings": {
             "title": "Ayarlar",

@@ -33,7 +33,8 @@
             "ready": "READY",
             "autoSync": "Auto-Sync",
             "subtitle": "Subtitle",
-            "share": "You can now share this link with your friends:"
+            "share": "You can now share this link with your friends:",
+            "noSubtitles": "No subtitles found"
         },
         "settings": {
             "title": "Settings",

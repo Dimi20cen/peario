@@ -33,7 +33,8 @@
             "ready": "LISTO",
             "autoSync": "Auto-Syncro",
             "subtitle": "Subtítulo",
-            "share": "Ahora puedes compartir este enlace con tus amigos:"
+            "share": "Ahora puedes compartir este enlace con tus amigos:",
+            "noSubtitles": "No se encontraron subtítulos"
         },
         "settings": {
             "title": "Parámetros",
