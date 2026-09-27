@@ -28,23 +28,38 @@ export default {
             const currentTime = this.video.currentTime;
             const wasPlaying = !this.video.paused;
 
-            if (!this.isHls) await HlsService.loadHls(this.options.hls, this.video);
-            else store.commit('player/updateVideoSrc', this.options.src);
-            
-            this.isHls = !this.isHls;
-            store.commit('player/updateVideoCurrentTime', currentTime);
+            if (!this.isHls) {
+                try {
+                    await HlsService.loadHls(this.options.hls, this.video, currentTime);
+                } catch (error) {
+                    console.error('Failed to switch to HLS:', error);
+                    HlsService.clear();
+                    store.commit('player/updateVideoSrc', this.options.src);
+                    store.commit('player/updateVideoCurrentTime', currentTime);
+                    if (wasPlaying) this.video.play().catch(() => {});
+                    return;
+                }
+            } else {
+                HlsService.clear();
+                store.commit('player/updateVideoSrc', this.options.src);
+                store.commit('player/updateVideoCurrentTime', currentTime);
+            }
 
-            if (wasPlaying) this.video.play();
+            this.isHls = !this.isHls;
+
+            if (wasPlaying) this.video.play().catch(() => {});
             this.isHls ? this.$toast.success(this.$t('toasts.hlsStream')) : this.$toast.success(this.$t('toasts.sourceStream'));
+        },
+        onVideoError() {
+            if (!this.isHls) this.toggleHls();
         }
     },
     mounted() {
-        HlsService.init();
-        this.video.addEventListener('error', this.toggleHls);
+        this.video.addEventListener('error', this.onVideoError);
     },
     unmounted() {
         HlsService.clear();
-        this.video.removeEventListener('onerror', this.toggleHls);
+        this.video.removeEventListener('error', this.onVideoError);
     }
 }
 </script>
