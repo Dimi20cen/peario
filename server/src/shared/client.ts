@@ -6,6 +6,7 @@ class Client {
     public id: string;
     public name: string;
     public room_id: string = '';
+    public loading: boolean = true;
     public last_active: number;
     public cooldown: number;
 

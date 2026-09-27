@@ -1,3 +1,5 @@
+import HlsService from '@/services/hls.service';
+
 export default {
     namespaced: true,
     state: {
@@ -8,11 +10,19 @@ export default {
         controlsHidden: false,
         buffering: true,
         volume: 0.5,
-        autoSync: true
+        autoSync: true,
+        pictureReady: false,
+        hls: false
     },
     getters: {
         video(state) {
             return state.video;
+        },
+        pictureReady(state) {
+            return state.pictureReady;
+        },
+        hls(state) {
+            return state.hls;
         },
         paused(state) {
             return state.paused;
@@ -66,12 +76,42 @@ export default {
         },
         updateVolume(state, value) {
             state.volume = value;
+        },
+        updatePictureReady(state, value) {
+            state.pictureReady = value;
+        },
+        updateHls(state, value) {
+            state.hls = value;
         }
     },
     actions: {
         setCurrentTime(context, time) {
             context.commit('updateCurrentTime', time);
             context.commit('updateVideoCurrentTime', time);
+        },
+        async setHls({ state, commit }, { enabled, src, playlist }) {
+            const { video } = state;
+            const currentTime = video.currentTime;
+            const wasPlaying = !video.paused;
+
+            if (enabled) {
+                try {
+                    await HlsService.loadHls(playlist, video, currentTime);
+                } catch (error) {
+                    console.error('Failed to switch to HLS:', error);
+                    enabled = false;
+                }
+            }
+
+            if (!enabled) {
+                HlsService.clear();
+                commit('updateVideoSrc', src);
+                commit('updateVideoCurrentTime', currentTime);
+            }
+
+            commit('updateHls', enabled);
+            if (wasPlaying) video.play().catch(() => {});
+            return enabled;
         }
     }
 };

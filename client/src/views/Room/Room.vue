@@ -78,16 +78,22 @@ const syncRoom = async () => {
     }
 
     if (playerState.value.autoSync && playerState.value.video && !playerState.value.locked) {
-        const { paused, buffering, time } = player;
+        const video = playerState.value.video;
+        const isOwner = clientState.value.user.id === owner;
+        const someoneLoading = clientState.value.room.users.some(({ loading }) => loading);
 
-        const unsync = time - playerState.value.video.currentTime;
-        if (unsync > 1 || unsync < -1) {
-            playerState.value.video.currentTime = time;
+        // The owner is the source of play/pause; only guests follow the room's state.
+        if (!isOwner) {
+            const unsync = player.time - video.currentTime;
+            if (unsync > 1 || unsync < -1) {
+                video.currentTime = player.time;
+            }
+
+            store.commit('player/updatePaused', player.paused);
+            playerState.value.buffering = player.buffering;
         }
 
-        paused ? playerState.value.video.pause() : playerState.value.video.play();
-        store.commit('player/updatePaused', playerState.value.video.paused);
-        playerState.value.buffering = buffering;
+        playerState.value.paused || someoneLoading ? video.pause() : video.play().catch(() => {});
     }
 };
 

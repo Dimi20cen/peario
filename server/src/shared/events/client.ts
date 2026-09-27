@@ -48,6 +48,12 @@ interface ClientSync extends ClientEvent {
     payload: Player;
 }
 
+interface ClientPlayerLoading extends ClientEvent {
+    payload: {
+        loading: boolean;
+    }
+}
+
 export {
     ClientEvent,
     ClientUserUpdate,
@@ -56,5 +62,6 @@ export {
     CientJoinRoom,
     ClientMessage,
     ClientUpdateOwnership,
-    ClientSync
+    ClientSync,
+    ClientPlayerLoading
 }

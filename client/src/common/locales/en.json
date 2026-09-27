@@ -34,7 +34,9 @@
             "autoSync": "Auto-Sync",
             "subtitle": "Subtitle",
             "share": "You can now share this link with your friends:",
-            "noSubtitles": "No subtitles found"
+            "noSubtitles": "No subtitles found",
+            "hlsOn": "HLS fix: on",
+            "hlsOff": "HLS fix: off"
         },
         "settings": {
             "title": "Settings",
@@ -77,6 +79,11 @@
         "room": {
             "title": "Loading the room",
             "message": "It can take some times."
+        },
+        "player": {
+            "loading": "Loading…",
+            "converting": "Converting video with Stremio…",
+            "waiting": "Waiting for {names}…"
         }
     },
     "toasts": {

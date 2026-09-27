@@ -34,7 +34,9 @@
             "autoSync": "Otomatik Eşitleme",
             "subtitle": "Alt yazı",
             "share": "Artık bu bağlantıyı arkadaşlarınızla paylaşabilirsiniz:",
-            "noSubtitles": "Altyazı bulunamadı"
+            "noSubtitles": "Altyazı bulunamadı",
+            "hlsOn": "HLS düzeltmesi: açık",
+            "hlsOff": "HLS düzeltmesi: kapalı"
         },
         "settings": {
             "title": "Ayarlar",
@@ -77,6 +79,11 @@
         "room": {
             "title": "Oda yükleniyor",
             "message": "Biraz zaman alabilir."
+        },
+        "player": {
+            "loading": "Yükleniyor…",
+            "converting": "Video Stremio ile dönüştürülüyor…",
+            "waiting": "{names} bekleniyor…"
         }
     },
     "toasts": {

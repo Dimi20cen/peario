@@ -408,4 +408,30 @@ describe('Client', function() {
         });
     });
 
+    it('should share each user\'s loading state with the whole room', (done) => {
+        createClient().then((client) => {
+            createClient().then((otherClient) => {
+                client.createRoom().then(({ id }) => {
+                    client.joinRoom(id).then(() => {
+                        otherClient.joinRoom(id).then((syncPayload) => {
+                            assert.strictEqual(syncPayload.users.every(({ loading }) => loading === true), true);
+
+                            otherClient.once('event', (type, payload) => {
+                                assert.strictEqual(type, 'sync');
+                                const user = payload.users.find(({ id }) => id === client.id);
+                                assert.strictEqual(user.loading, false);
+
+                                client.close();
+                                otherClient.close();
+                                done();
+                            });
+
+                            client.sendEvent('player.loading', { loading: false });
+                        });
+                    });
+                });
+            });
+        });
+    });
+
 });

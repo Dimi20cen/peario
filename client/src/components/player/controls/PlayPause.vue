@@ -1,5 +1,5 @@
 <template>
-    <div class="play-pause" @click="togglePlay()" :class="{ 'disabled': autoSync && !options.isOwner }">
+    <div class="play-pause" @click="togglePlay()" :class="{ 'disabled': (autoSync && !options.isOwner) || someoneLoading }">
         <ion-icon name="play-outline" v-if="paused"></ion-icon>
         <ion-icon name="pause-outline" v-else></ion-icon>
     </div>
@@ -15,13 +15,20 @@ export default {
     props: {
         options: Object
     },
-    computed: mapGetters({
-        video: 'player/video',
-        paused: 'player/paused',
-        autoSync: 'player/autoSync'
-    }),
+    computed: {
+        ...mapGetters({
+            video: 'player/video',
+            paused: 'player/paused',
+            autoSync: 'player/autoSync'
+        }),
+        someoneLoading() {
+            const { room } = store.state.client;
+            return this.autoSync && !!room && room.users.some(({ loading }) => loading);
+        }
+    },
     methods: {
         togglePlay() {
+            if (this.someoneLoading) return;
             if ((!this.options.isOwner && !this.autoSync) || this.options.isOwner) {
                 this.paused ? this.video.play() : this.video.pause();
                 store.commit('player/updatePaused', this.video.paused);

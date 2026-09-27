@@ -2,7 +2,7 @@ import fs from 'fs';
 import https from 'https';
 import WS from './ws';
 import { PORT, PEM_CERT, PEM_KEY, INTERVAL_CLIENT_CHECK, INTERVAL_ROOM_UPDATE } from './common/config';
-import { ClientEvent, ClientIdentify, ClientNewRoom, CientJoinRoom, ClientMessage, ClientSync, ClientUserUpdate, ClientUpdateOwnership } from './shared/events/client';
+import { ClientEvent, ClientIdentify, ClientNewRoom, CientJoinRoom, ClientMessage, ClientSync, ClientUserUpdate, ClientUpdateOwnership, ClientPlayerLoading } from './shared/events/client';
 import { RoomEvent, SyncEvent, MessageEvent, ErrorEvent, UserEvent } from './shared/events/server';
 import RoomManager from './room';
 import { User } from './shared';
@@ -28,6 +28,7 @@ wss.events.on('room.join', joinRoom);
 wss.events.on('room.message', messageRoom);
 wss.events.on('room.updateOwnership', updateRoomOwnership);
 wss.events.on('player.sync', syncPlayer);
+wss.events.on('player.loading', updatePlayerLoading);
 wss.events.on('heartbeat', heartbeat);
 
 function identifyClient({ client, payload }: ClientIdentify) {
@@ -114,6 +115,16 @@ function updateRoomOwnership({ client, payload }: ClientUpdateOwnership) {
         if (updatedRoom)
             wss.sendToRoomClients(updatedRoom.id, new SyncEvent(updatedRoom));
     }
+}
+
+function updatePlayerLoading({ client, payload }: ClientPlayerLoading) {
+    client.loading = !!(payload && payload.loading);
+
+    const room = roomManager.getClientRoom(client);
+    if (!room) return;
+
+    roomManager.updateUser(room.id, new User(client));
+    wss.sendToRoomClients(room.id, new SyncEvent(room));
 }
 
 function syncPlayer({ client, payload: player }: ClientSync) {

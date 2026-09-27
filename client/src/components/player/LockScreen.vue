@@ -2,8 +2,11 @@
     <div class="lock-screen">
         <div class="header">
             <img v-if="options.meta.logo" :src="options.meta.logo" :alt="options.meta.name">
-            <AButton large icon="checkmark-outline" @click="unlockPlayer()">
+            <AButton large icon="checkmark-outline" @click="unlockPlayer()" v-if="pictureReady">
                 {{ $t('components.player.ready') }}
+            </AButton>
+            <AButton large icon="hourglass-outline" disabled v-else>
+                {{ $t('loading.player.loading') }}
             </AButton>
         </div>
 
@@ -37,7 +40,8 @@ export default {
             return window.location.href;
         },
         ...mapGetters({
-            video: 'player/video'
+            video: 'player/video',
+            pictureReady: 'player/pictureReady'
         })
     },
     methods: {

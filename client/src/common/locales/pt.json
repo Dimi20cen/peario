@@ -34,7 +34,9 @@
             "autoSync": "Auto-Sync",
             "subtitle": "Subtítulo",
             "share": "Pode agora partilhar este link com os seus amigos:",
-            "noSubtitles": "Nenhuma legenda encontrada"
+            "noSubtitles": "Nenhuma legenda encontrada",
+            "hlsOn": "Correção HLS: ativada",
+            "hlsOff": "Correção HLS: desativada"
         },
         "settings": {
             "title": "Parâmetros",
@@ -77,6 +79,11 @@
         "room": {
             "title": "Carregamento da sala",
             "message": "Pode demorar algumas vezes."
+        },
+        "player": {
+            "loading": "A carregar…",
+            "converting": "A converter o vídeo com o Stremio…",
+            "waiting": "À espera de {names}…"
         }
     },
     "toasts": {

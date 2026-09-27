@@ -8,9 +8,10 @@
 
         <LockScreen :options="props.options" v-if="locked"></LockScreen>
         
-        <div class="buffering" v-if="!locked && !paused && buffering">
-            <div>
+        <div class="buffering" v-if="!locked && (waitingMessage || (!paused && buffering))">
+            <div class="waiting">
                 <ion-icon name="sync-outline" class="spin"></ion-icon>
+                <div class="message" v-if="waitingMessage">{{ waitingMessage }}</div>
             </div>
         </div>
 
@@ -49,7 +50,10 @@
 
 <script setup>
 import { computed, onMounted, ref, watch, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import store from '@/store';
+import ClientService from '@/services/client.service';
+import HlsService from '@/services/hls.service';
 
 import LockScreen from "./LockScreen.vue";
 import Subtitle from "./Subtitle.vue";
@@ -83,10 +87,95 @@ const currentTime = computed(() => store.state.player.currentTime);
 const controlsHidden = computed(() => store.state.player.controlsHidden);
 const buffering = computed(() => store.state.player.buffering);
 const volume = computed(() => store.state.player.volume);
+const hls = computed(() => store.state.player.hls);
+const pictureReady = computed(() => store.state.player.pictureReady);
+
+const { t } = useI18n();
+const myId = computed(() => store.state.client.user && store.state.client.user.id);
+const roomUsers = computed(() => (store.state.client.room && store.state.client.room.users) || []);
+const loadingUsers = computed(() => roomUsers.value.filter(({ loading }) => loading));
+
+const waitingMessage = computed(() => {
+    if (!pictureReady.value || loadingUsers.value.some(({ id }) => id === myId.value))
+        return hls.value ? t('loading.player.converting') : t('loading.player.loading');
+    if (store.state.player.autoSync && loadingUsers.value.length)
+        return t('loading.player.waiting', { names: loadingUsers.value.map(({ name }) => name).join(', ') });
+    return null;
+});
 
 const playerRef = ref(null);
 const videoRef = ref(null);
 const userSubtitle = ref(null);
+
+// "Ready" means the picture is actually being decoded, not just that sound or metadata has arrived.
+const decodedFrames = (video) => video.getVideoPlaybackQuality ? video.getVideoPlaybackQuality().totalVideoFrames : video.webkitVideoDecodedByteCount;
+
+let lastDecodedFrames = 0;
+let lastDecodeProgressAt = 0;
+const hasPicture = (now) => {
+    const video = videoRef.value;
+    if (!video || video.error) return false;
+
+    const frames = decodedFrames(video);
+    // The counter resets whenever the source changes (e.g. switching to HLS), so any change counts.
+    if (video.paused || video.seeking || document.hidden || frames !== lastDecodedFrames) lastDecodeProgressAt = now;
+    lastDecodedFrames = frames;
+
+    if (video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA || video.videoWidth === 0) return false;
+    if (!document.hidden && video.webkitVideoDecodedByteCount === 0) return false;
+
+    // While playing, sound running on without new picture frames means the picture is stuck.
+    return now - lastDecodeProgressAt < 1500;
+};
+
+// The browser has data but can't decode the picture (e.g. HEVC): try the HLS transcode once.
+let undecodableSince = null;
+let autoHlsTried = false;
+const switchToHlsIfUndecodable = (now) => {
+    const video = videoRef.value;
+    if (hls.value || autoHlsTried || !props.options.hls || !video) return;
+
+    // Background tabs don't decode frames at all, which would look like an undecodable picture.
+    if (document.hidden) {
+        undecodableSince = null;
+        return;
+    }
+
+    const undecodable = !!video.error || (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+        && (video.videoWidth === 0 || video.webkitVideoDecodedByteCount === 0));
+    if (!undecodable) {
+        undecodableSince = null;
+        return;
+    }
+
+    if (undecodableSince === null) undecodableSince = now;
+    if (now - undecodableSince > 3000) {
+        autoHlsTried = true;
+        store.dispatch('player/setHls', { enabled: true, src: props.options.src, playlist: props.options.hls });
+    }
+};
+
+let notReadySince = null;
+let lastReported = null;
+let lastReportedAt = 0;
+const checkPicture = () => {
+    const now = Date.now();
+    switchToHlsIfUndecodable(now);
+    if (hasPicture(now)) notReadySince = null;
+    else if (notReadySince === null) notReadySince = now;
+
+    // A short hiccup shouldn't pause the whole room.
+    const ready = notReadySince === null || (pictureReady.value && now - notReadySince < 1000);
+    if (ready !== pictureReady.value) store.commit('player/updatePictureReady', ready);
+
+    const me = roomUsers.value.find(({ id }) => id === myId.value);
+    if (me && me.loading === ready && (lastReported !== ready || now - lastReportedAt > 2000)) {
+        ClientService.send('player.loading', { loading: !ready });
+        lastReported = ready;
+        lastReportedAt = now;
+    }
+};
+let pictureInterval = null;
 
 watch(volume, (value) => {
     videoRef.value.volume = value;
@@ -131,13 +220,21 @@ const onSubtitlesDropped = (event) => {
 onMounted(() => {
     store.commit('player/updateLockState', true);
     store.commit('player/updateVideo', videoRef.value);
+    store.commit('player/updatePictureReady', false);
+    store.commit('player/updateHls', false);
     videoRef.value.volume = volume.value;
+
+    pictureInterval = setInterval(checkPicture, 500);
 });
 
 onUnmounted(() => {
     store.commit('player/updateVideo', null);
     clearTimeout(hideTimeout);
     hideTimeout = null;
+    clearInterval(pictureInterval);
+    pictureInterval = null;
+    HlsService.clear();
+    store.commit('player/updateHls', false);
 });
 </script>
 
@@ -170,6 +267,20 @@ $overlay-background-color: rgba(0, 0, 0, 0.5);
         justify-content: center;
         color: $text-color;
         background-color: $overlay-background-color;
+
+        .waiting {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            padding: 0 2rem;
+            text-align: center;
+        }
+
+        .message {
+            font-family: 'Montserrat-SemiBold';
+            font-size: 1.2rem;
+        }
 
         ion-icon {
             font-size: 5rem;
