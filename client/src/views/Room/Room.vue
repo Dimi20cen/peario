@@ -37,6 +37,7 @@ import UsersList from './UsersList/UsersList.vue';
 import StremioService from "@/services/stremio.service";
 import HlsService from "@/services/hls.service";
 import ClientService from "@/services/client.service";
+import LogService from "@/services/log.service";
 import { onBeforeRouteLeave } from 'vue-router';
 
 const initialized = ref(false); 
@@ -63,6 +64,7 @@ const syncRoom = async () => {
     if (!initialized.value) {
         const isTorrentStream = stream.infoHash != null;
     
+        LogService.info('opening stream', { title: meta.name, type: isTorrentStream ? 'torrent' : 'direct link', url: stream.url });
         const videoUrl = isTorrentStream ? await StremioService.createTorrentStream(stream) : stream.url;
 
         // Offered for direct URLs too: browsers can't decode some audio codecs

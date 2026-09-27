@@ -1,6 +1,7 @@
 import Hls from 'hls.js';
 import hat from 'hat';
 import { STREMIO_STREAMING_SERVER } from '@/common/config';
+import LogService from '@/services/log.service';
 
 // Stremio's hlsv2 restarts timestamps at 0 after a seek, which stalls hls.js; retime each fragment to its playlist start.
 const playlistStarts = {};
@@ -129,8 +130,10 @@ const HlsService = {
                 this.hls.startLoad(startPosition);
                 resolve();
             });
-            this.hls.on(Hls.Events.ERROR, (_, { fatal, details }) => {
-                if (fatal) reject(new Error(details));
+            this.hls.on(Hls.Events.ERROR, (_, { fatal, type, details }) => {
+                if (!fatal) return;
+                LogService.error('HLS playback error', { type, details });
+                reject(new Error(details));
             });
 
             this.hls.attachMedia(videoElement);

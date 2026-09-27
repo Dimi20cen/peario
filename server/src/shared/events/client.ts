@@ -54,6 +54,14 @@ interface ClientPlayerLoading extends ClientEvent {
     }
 }
 
+interface ClientLog extends ClientEvent {
+    payload: {
+        level: 'info' | 'warn' | 'error';
+        message: string;
+        details?: Record<string, unknown>;
+    }
+}
+
 export {
     ClientEvent,
     ClientUserUpdate,
@@ -63,5 +71,6 @@ export {
     ClientMessage,
     ClientUpdateOwnership,
     ClientSync,
-    ClientPlayerLoading
+    ClientPlayerLoading,
+    ClientLog
 }

@@ -7,6 +7,7 @@ const ClientService = {
     socket: null,
     heartbeat: null,
     events: new EventEmitter,
+    pendingLogs: [],
 
     connect(url) {
         this.socket = new WebSocket(url);
@@ -22,6 +23,15 @@ const ClientService = {
         // apart from a brand new guest, and ownership is lost on refresh.
         this.send('client.identify', { id: this.getClientId() });
         this.heartbeat = setInterval(() => this.send('heartbeat', {}), 2000);
+
+        this.log('info', 'connected', { browser: navigator.userAgent });
+        this.pendingLogs.splice(0).forEach(log => this.send('client.log', log));
+    },
+
+    log(level, message, details) {
+        const log = { level, message, details };
+        if (this.socket && this.socket.readyState === WebSocket.OPEN) this.send('client.log', log);
+        else if (this.pendingLogs.length < 20) this.pendingLogs.push(log);
     },
 
     getClientId() {

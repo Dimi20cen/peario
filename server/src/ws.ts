@@ -4,6 +4,7 @@ import { EventEmitter } from 'events';
 import { Client, User } from './shared';
 import { ServerEvent, ReadyEvent } from './shared/events/server';
 import { ClientEvent } from './shared/events/client';
+import { logger } from './common/logger';
 
 class WS {
 
@@ -19,7 +20,7 @@ class WS {
             client.onMessage((data: string) => this.handleEvents(client, data));
             socket.on('close', () => this.removeClient(client));
             this.clients.push(client);
-            console.log('New client:', client.id, client.name);
+            logger.info({ user: client.name }, 'connected');
         });
 
         // Clean clients when inactive
@@ -27,12 +28,21 @@ class WS {
     }
 
     private handleEvents(client: Client, data: string) {
+        let event;
         try {
-            const { type, payload } = JSON.parse(data);
-            this.events.emit(type, <ClientEvent>{ client, payload });
-            console.log(client.name, type);
-        } catch(e) {
-            console.error('Error while parsing event');
+            event = JSON.parse(data);
+        } catch {
+            logger.warn({ room: client.room_id, user: client.name }, 'unreadable message from client');
+            return;
+        }
+
+        try {
+            this.events.emit(event.type, <ClientEvent>{ client, payload: event.payload });
+        } catch (error) {
+            logger.error({ room: client.room_id, user: client.name }, 'error while handling message', {
+                type: event.type,
+                error: error instanceof Error ? error.stack : error,
+            });
         }
     }
 

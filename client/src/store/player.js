@@ -1,4 +1,5 @@
 import HlsService from '@/services/hls.service';
+import LogService from '@/services/log.service';
 
 export default {
     namespaced: true,
@@ -98,7 +99,7 @@ export default {
                 try {
                     await HlsService.loadHls(playlist, video, currentTime);
                 } catch (error) {
-                    console.error('Failed to switch to HLS:', error);
+                    LogService.error('HLS fix failed to start, back to the original stream', { error: error.message });
                     enabled = false;
                 }
             }
@@ -109,6 +110,7 @@ export default {
                 commit('updateVideoCurrentTime', currentTime);
             }
 
+            if (enabled !== state.hls) LogService.info(enabled ? 'HLS fix on' : 'HLS fix off', { at: Math.round(currentTime) });
             commit('updateHls', enabled);
             if (wasPlaying) video.play().catch(() => {});
             return enabled;

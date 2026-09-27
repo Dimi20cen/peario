@@ -1,6 +1,7 @@
 import StremioService from '../services/stremio.service';
 import AddonService from '../services/addon.service';
 import StorageService from '../services/storage.service';
+import LogService from '../services/log.service';
 
 export default {
     state: {
@@ -88,7 +89,7 @@ export default {
                 commit('addToUser', addon);
                 return Promise.resolve(addon);
             } catch(e) {
-                console.error('Failed to parse url');
+                LogService.warn('failed to add addon from link', { error: e.message });
                 return Promise.resolve(false);
             }
         }

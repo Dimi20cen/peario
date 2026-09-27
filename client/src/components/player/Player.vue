@@ -21,7 +21,8 @@
             @click="showControls"
             @timeupdate="updateCurrentTime"
             @waiting="() => updateBuffering(true)"
-            @loadedmetadata="() => updateBuffering(false)"
+            @loadedmetadata="onLoadedMetadata"
+            @error="onVideoError"
             @canplay="() => updateBuffering(false)">
         </video>
 
@@ -54,6 +55,7 @@ import { useI18n } from 'vue-i18n';
 import store from '@/store';
 import ClientService from '@/services/client.service';
 import HlsService from '@/services/hls.service';
+import LogService from '@/services/log.service';
 
 import LockScreen from "./LockScreen.vue";
 import Subtitle from "./Subtitle.vue";
@@ -110,6 +112,33 @@ const userSubtitle = ref(null);
 // "Ready" means the picture is actually being decoded, not just that sound or metadata has arrived.
 const decodedFrames = (video) => video.getVideoPlaybackQuality ? video.getVideoPlaybackQuality().totalVideoFrames : video.webkitVideoDecodedByteCount;
 
+const diagnostics = () => {
+    const video = videoRef.value;
+    return {
+        at: Math.round(video.currentTime),
+        paused: video.paused,
+        readyState: video.readyState,
+        size: `${video.videoWidth}x${video.videoHeight}`,
+        decodedFrames: decodedFrames(video),
+        audioBytes: video.webkitAudioDecodedByteCount,
+        hls: hls.value,
+        hidden: document.hidden,
+    };
+};
+
+const onLoadedMetadata = () => {
+    updateBuffering(false);
+    const video = videoRef.value;
+    LogService.info('video loaded', { size: `${video.videoWidth}x${video.videoHeight}`, duration: Math.round(video.duration), hls: hls.value });
+};
+
+const onVideoError = () => {
+    const { error } = videoRef.value;
+    // Detaching HLS briefly empties the src, which the browser reports as an error.
+    if (!error || (error.message || '').includes('Empty src')) return;
+    LogService.error('video error', { code: error.code, message: error.message, hls: hls.value });
+};
+
 let lastDecodedFrames = 0;
 let lastDecodeProgressAt = 0;
 const hasPicture = (now) => {
@@ -151,6 +180,10 @@ const switchToHlsIfUndecodable = (now) => {
     if (undecodableSince === null) undecodableSince = now;
     if (now - undecodableSince > 3000) {
         autoHlsTried = true;
+        LogService.warn('browser cannot decode the picture, switching HLS fix on automatically', {
+            ...diagnostics(),
+            error: video.error ? video.error.message : undefined,
+        });
         store.dispatch('player/setHls', { enabled: true, src: props.options.src, playlist: props.options.hls });
     }
 };
@@ -158,6 +191,8 @@ const switchToHlsIfUndecodable = (now) => {
 let notReadySince = null;
 let lastReported = null;
 let lastReportedAt = 0;
+let loadingSince = Date.now();
+let stuckLogged = false;
 const checkPicture = () => {
     const now = Date.now();
     switchToHlsIfUndecodable(now);
@@ -166,7 +201,19 @@ const checkPicture = () => {
 
     // A short hiccup shouldn't pause the whole room.
     const ready = notReadySince === null || (pictureReady.value && now - notReadySince < 1000);
-    if (ready !== pictureReady.value) store.commit('player/updatePictureReady', ready);
+    if (ready !== pictureReady.value) {
+        if (ready) {
+            LogService.info('picture ready', { ...diagnostics(), waitedSeconds: Math.round((now - loadingSince) / 1000) });
+        } else {
+            LogService.warn('picture lost, room waiting', diagnostics());
+            loadingSince = now;
+            stuckLogged = false;
+        }
+        store.commit('player/updatePictureReady', ready);
+    } else if (!ready && !stuckLogged && now - loadingSince > 15000) {
+        LogService.warn('picture still not ready after 15s', diagnostics());
+        stuckLogged = true;
+    }
 
     const me = roomUsers.value.find(({ id }) => id === myId.value);
     if (me && me.loading === ready && (lastReported !== ready || now - lastReportedAt > 2000)) {

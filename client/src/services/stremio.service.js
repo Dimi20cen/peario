@@ -1,4 +1,5 @@
 import axios from "axios";
+import LogService from "@/services/log.service";
 import { CINEMETA_URL, OPENSUBTITLES_URL, STREMIO_API_URL, STREMIO_STREAMING_SERVER } from "@/common/config";
 
 const StremioService = {
@@ -60,11 +61,11 @@ const StremioService = {
             // The local streaming server's /opensubHash often can't be reached
             // (blocked by its own CORS policy for this origin), so fall back to
             // a hash-less lookup instead of silently returning no subtitles.
-            console.error('Falling back to hash-less subtitle search:', err);
+            LogService.warn('subtitle hash lookup failed, searching without it', { error: err.message });
             try {
                 return await queryOpenSubtitles({ type, id });
             } catch (fallbackErr) {
-                console.error('Subtitle search failed:', fallbackErr);
+                LogService.warn('subtitle search failed', { error: fallbackErr.message });
                 return [];
             }
         }

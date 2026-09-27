@@ -1,4 +1,5 @@
 import axios from "axios";
+import LogService from "@/services/log.service";
 import { parseSync } from 'subtitle';
 
 const SubtitleService = {
@@ -25,7 +26,7 @@ const SubtitleService = {
             this.subtitles = parseSync(data);
             return Promise.resolve();
         } catch(err) {
-            console.error('Failed to load subtitle:', err);
+            LogService.warn('failed to load subtitle', { url, error: err && err.message });
             return Promise.reject(err);
         }
     },
