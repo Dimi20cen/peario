@@ -64,19 +64,15 @@ const syncRoom = async () => {
         const isTorrentStream = stream.infoHash != null;
     
         const videoUrl = isTorrentStream ? await StremioService.createTorrentStream(stream) : stream.url;
+
+        // Offered for direct URLs too: browsers can't decode some audio codecs
+        // (e.g. EAC3), and the HLS transcode is the only in-player way around it.
+        const playlistUrl = await HlsService.createPlaylist(videoUrl);
         playerOptions.value = {
             ...playerOptions.value,
             src: videoUrl,
-            hls: null,
+            hls: playlistUrl,
         };
-
-        if (isTorrentStream) {
-            const playlistUrl = await HlsService.createPlaylist(videoUrl);
-            playerOptions.value = {
-                ...playerOptions.value,
-                hls: playlistUrl,
-            };
-        }
 
         initialized.value = true;
     }
