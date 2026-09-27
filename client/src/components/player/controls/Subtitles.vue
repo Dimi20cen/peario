@@ -31,14 +31,17 @@
                 </div>
 
                 <div class="lists" v-else>
-                    <List class="langs" small v-model="panelLang" :items="langs" itemKey="iso">
+                    <List class="langs" small v-model="panelLang" :items="langs" itemKey="key">
                         <template #left="{ item }">
-                            {{ item.local }}
+                            {{ item.name }}
                         </template>
                     </List>
-                    <List class="subs" small v-model="subtitles.current" :items="filterSubs()" itemKey="id">
-                        <template #left="{ index }">
-                            {{ `${$t(`components.player.subtitle`)} ${ index + 1 }` }}
+                    <List class="subs" small v-model="subtitles.current" :items="filterSubs()" itemKey="id" @click="pickedByHand = true">
+                        <template #left="{ item, index }">
+                            <div class="variant">
+                                <div class="name">{{ item.label || `${$t(`components.player.subtitle`)} ${ index + 1 }` }}</div>
+                                <div class="source">{{ sourceName(item) }}</div>
+                            </div>
                         </template>
                     </List>
                 </div>
@@ -53,6 +56,34 @@ import { mapGetters } from 'vuex';
 import List from '@/components/ui/List.vue';
 import StremioService from '@/services/stremio.service';
 import AddonService from '@/services/addon.service';
+
+// OpenSubtitles' own codes for regional variants, which aren't in the standard lists.
+const REGIONAL_LANGUAGES = {
+    pob: { key: 'pt-BR', name: 'Português (Brasil)' },
+    pom: { key: 'pt-MZ', name: 'Português (Moçambique)' },
+    spl: { key: 'es-419', name: 'Español (Latinoamérica)' },
+    spn: { key: 'es-ES', name: 'Español (España)' },
+    zht: { key: 'zh-TW', name: '中文 (繁體)' },
+    zhe: { key: 'zh-bilingual', name: '中文 (双语)' },
+    ze: { key: 'zh-bilingual', name: '中文 (双语)' },
+};
+
+// Sources send either the 2-letter (e.g. "en"), 3-letter (e.g. "eng") or
+// regional (e.g. "en-GB") form; they all map to one key so each language is listed once.
+const languageOf = code => {
+    const raw = (code || '').trim();
+    if (raw === 'user') return { key: 'user', name: 'User' };
+    if (REGIONAL_LANGUAGES[raw.toLowerCase()]) return REGIONAL_LANGUAGES[raw.toLowerCase()];
+
+    const [base, region] = raw.split(/[-_]/);
+    const found = base && ['1', '2', '2B', '2T', '3'].map(type => where(type, base.toLowerCase())).find(language => language);
+    // Never render a blank, unpickable entry for a missing or unrecognized code.
+    if (!found) return { key: raw || 'und', name: raw && raw !== 'und' ? raw : 'Unknown' };
+
+    return region
+        ? { key: `${found['1']}-${region.toUpperCase()}`, name: `${found.local} (${region.toUpperCase()})` }
+        : { key: found['1'], name: found.local };
+};
 
 export default {
     name: 'SubtitlesControl',
@@ -81,7 +112,9 @@ export default {
             list: [],
             localeLang: (this.$i18n && this.$i18n.locale) || 'en',
             langs: [],
-            loading: true
+            loading: true,
+            // Once someone picks a subtitle, sources that answer later don't change it.
+            pickedByHand: false
         };
     },
     watch: {
@@ -93,11 +126,13 @@ export default {
                 return;
             }
 
-            const isCurrentUser = this.panelLang && this.panelLang.iso === 'user';
-            const current = this.list.find(s => isCurrentUser ? s.lang === 'user' : s.lang.startsWith(this.localeLang)) || this.list[0];
+            const keep = this.pickedByHand && this.list.includes(this.subtitles.current);
+            // The track inside the file is made for this exact video, so it's the best default.
+            const inLocale = this.list.filter(s => languageOf(s.lang).key.startsWith(this.localeLang));
+            const current = keep ? this.subtitles.current : inLocale.find(s => s.embedded) || inLocale[0] || this.list[0];
 
-            this.panelLang = this.langs.find(({ iso }) => iso === current.lang);
-            this.$store.dispatch('updateCurrent', current);
+            this.panelLang = this.langs.find(({ key }) => key === languageOf(current.lang).key);
+            if (current !== this.subtitles.current) this.$store.dispatch('updateCurrent', current);
         },
         'subtitles.active'(state) {
             this.$store.dispatch('updateActive', state);
@@ -117,9 +152,12 @@ export default {
                 const subtitle = {
                     id: `user-${userIndex}`,
                     lang: 'user',
+                    label: file.name,
                     data: reader.result
                 };
 
+                this.$store.dispatch('updateCurrent', subtitle);
+                this.pickedByHand = true;
                 this.list = [
                     subtitle,
                     ...this.list
@@ -137,51 +175,49 @@ export default {
         fetchSubtitles() {
             this.loading = true;
 
-            const addToList = subtitles => {
-                this.list.push(...subtitles);
+            // For a series, `id` is the whole show; subtitles are listed per episode.
+            const id = this.meta.videoId || this.meta.id;
 
-                const urls = [...new Set(this.list.map(({ url }) => url))];
-                this.list = urls.map(url => this.list.find(sub => sub.url === url));
+            const addToList = subtitles => {
+                const known = new Set(this.list.map(({ url, id }) => url || id));
+                this.list = [...this.list, ...subtitles.filter(({ url, id }) => !known.has(url || id))];
             };
+
+            const embeddedFetch = StremioService.getEmbeddedSubtitles(this.videoUrl)
+                .then(embeddedSubtitles => addToList(embeddedSubtitles));
 
             const stremioFetch = StremioService.getSubtitles({
                 type: this.meta.type,
-                id: this.meta.id,
+                id,
                 url: this.videoUrl,
             }).then(stremioSubtitles => addToList(stremioSubtitles));
 
             const addonFetches = this.installedSubtitles
-                .map(addon => AddonService.getSubtitles([addon], this.meta.type, this.meta.id)
+                .map(addon => AddonService.getSubtitles([addon], this.meta.type, id)
                 .then(addonsSubtitles => addToList(addonsSubtitles)));
 
-            Promise.all([stremioFetch, ...addonFetches]).finally(() => {
+            Promise.all([embeddedFetch, stremioFetch, ...addonFetches]).finally(() => {
                 this.loading = false;
             });
         },
         filterSubs() {
-            return this.panelLang ? this.list.filter(s => s.lang === this.panelLang.iso) : [];
+            if (!this.panelLang) return [];
+            // Tracks inside the video first: they're timed for this exact file.
+            return this.list
+                .filter(s => languageOf(s.lang).key === this.panelLang.key)
+                .sort((a, b) => !!b.embedded - !!a.embedded);
+        },
+        sourceName(subtitle) {
+            if (subtitle.embedded) return this.$t('components.player.embedded');
+            if (subtitle.lang === 'user') return this.$t('components.player.yourFile');
+            return subtitle.source || '';
         },
         extractLangs(list) {
+            const rank = ({ key }) => key === 'user' ? 0 : key.startsWith(this.localeLang) ? 1 : 2;
             return list
-                    .map(({ lang }) => lang)
-                    .filter((el, i, self) => i == self.indexOf(el))
-                    .map(lang => {
-                        // Addons commonly send either the 2-letter (ISO 639-1,
-                        // e.g. "en") or 3-letter (ISO 639-2, e.g. "eng") form -
-                        // try both before giving up on a readable name.
-                        const iso1 = where('1', lang);
-                        const iso2 = where('2', lang);
-                        const iso2B = where('2B', lang);
-                        const local = iso1 ? iso1.local : iso2 ? iso2.local : iso2B ? iso2B.local : lang;
-
-                        return {
-                            iso: lang,
-                            // Never render a blank, unpickable entry even if the
-                            // addon sent an unrecognized or empty language code.
-                            local: lang === 'user' ? 'User' : (local || 'Unknown')
-                        }
-                    })
-                    .sort((a, b) => a.local.localeCompare(b.local));
+                    .map(({ lang }) => languageOf(lang))
+                    .filter((language, i, self) => i === self.findIndex(({ key }) => key === language.key))
+                    .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
         }
     },
     mounted() {
@@ -265,6 +301,22 @@ export default {
 
                 &:first-child .item div:last-child {
                     font-family: 'Montserrat-SemiBold' !important;
+                }
+
+                .variant {
+                    min-width: 0;
+
+                    .name {
+                        overflow: hidden;
+                        white-space: nowrap;
+                        text-overflow: ellipsis;
+                    }
+
+                    .source {
+                        margin-top: 0.2em;
+                        font-size: 0.8em;
+                        opacity: 0.6;
+                    }
                 }
             }
         }

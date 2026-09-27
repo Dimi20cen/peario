@@ -35,6 +35,8 @@
             "subtitle": "Sous-Titre",
             "share": "Vous pouvez maintenant partager ce lien avec vos amis:",
             "noSubtitles": "Aucun sous-titre trouvé",
+            "embedded": "Intégré",
+            "yourFile": "Votre fichier",
             "hlsOn": "Correctif HLS : activé",
             "hlsOff": "Correctif HLS : désactivé"
         },

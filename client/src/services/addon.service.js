@@ -52,11 +52,11 @@ const AddonService = {
         return (await Promise.all(collection.map(async addon => {
             try {
                 const { subtitles } = await addon.get('subtitles', type, id);
-                return subtitles;
+                return (subtitles || []).map(subtitle => ({ ...subtitle, source: addon.manifest.name }));
             } catch (e) {
                 return [];
             }
-        }))).filter(sub => sub).flat();
+        }))).flat();
     }
 
 };

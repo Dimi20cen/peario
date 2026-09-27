@@ -35,6 +35,8 @@
             "subtitle": "Subtitle",
             "share": "You can now share this link with your friends:",
             "noSubtitles": "No subtitles found",
+            "embedded": "Embedded",
+            "yourFile": "Your file",
             "hlsOn": "HLS fix: on",
             "hlsOff": "HLS fix: off"
         },

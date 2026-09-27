@@ -103,7 +103,9 @@ const loadStreams = () => {
 };
 
 const createRoom = (stream) => {
-    ClientService.send('room.new', { stream, meta: meta.value });
+    // The route id is the exact video the streams were listed for (for series, the episode).
+    const { id: videoId } = router.currentRoute.value.params;
+    ClientService.send('room.new', { stream, meta: { ...meta.value, videoId } });
 };
 
 watch(installedAddonsState, () => loadStreams());

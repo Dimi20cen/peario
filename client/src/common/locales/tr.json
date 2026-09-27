@@ -35,6 +35,8 @@
             "subtitle": "Alt yazı",
             "share": "Artık bu bağlantıyı arkadaşlarınızla paylaşabilirsiniz:",
             "noSubtitles": "Altyazı bulunamadı",
+            "embedded": "Gömülü",
+            "yourFile": "Dosyanız",
             "hlsOn": "HLS düzeltmesi: açık",
             "hlsOff": "HLS düzeltmesi: kapalı"
         },
