@@ -166,14 +166,22 @@ export default {
                     .map(({ lang }) => lang)
                     .filter((el, i, self) => i == self.indexOf(el))
                     .map(lang => {
+                        // Addons commonly send either the 2-letter (ISO 639-1,
+                        // e.g. "en") or 3-letter (ISO 639-2, e.g. "eng") form -
+                        // try both before giving up on a readable name.
+                        const iso1 = where('1', lang);
                         const iso2 = where('2', lang);
                         const iso2B = where('2B', lang);
+                        const local = iso1 ? iso1.local : iso2 ? iso2.local : iso2B ? iso2B.local : lang;
+
                         return {
                             iso: lang,
-                            local: lang === 'user' ? 'User' : (iso2 ? iso2.local : iso2B ? iso2B.local : lang)
+                            // Never render a blank, unpickable entry even if the
+                            // addon sent an unrecognized or empty language code.
+                            local: lang === 'user' ? 'User' : (local || 'Unknown')
                         }
                     })
-                    .sort();
+                    .sort((a, b) => a.local.localeCompare(b.local));
         }
     },
     mounted() {
