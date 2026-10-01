@@ -32,8 +32,12 @@ services:
       args:
         VUE_APP_WS_SERVER: ${VUE_APP_WS_SERVER}
         VUE_APP_TITLE: ${VUE_APP_TITLE}
+        # Everyone uses this machine's Stremio through the site (see client/nginx.conf).
+        VUE_APP_STREMIO_SERVER: ${VUE_APP_STREMIO_SERVER:-/stremio}
     ports:
       - "127.0.0.1:8090:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - server
     logging: *logging

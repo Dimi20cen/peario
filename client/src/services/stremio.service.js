@@ -63,6 +63,11 @@ const StremioService = {
     // playlist lists them, and serves each one as a series of short WebVTT
     // chunks (see SubtitleService.setEmbedded).
     async getEmbeddedSubtitles(videoUrl) {
+        // Only for torrents, whose data Stremio already has on disk. For a web link, every
+        // subtitle chunk makes Stremio download the whole file again in the background,
+        // which piles up downloads until the host (e.g. TorBox) refuses with "too many requests".
+        if (!videoUrl.startsWith(STREMIO_STREAMING_SERVER)) return [];
+
         try {
             // A playlist of its own, so reading subtitles never disturbs the
             // conversion the HLS fix may be running on the video.

@@ -55,6 +55,7 @@ import { useI18n } from 'vue-i18n';
 import store from '@/store';
 import ClientService from '@/services/client.service';
 import HlsService from '@/services/hls.service';
+import StremioService from '@/services/stremio.service';
 import LogService from '@/services/log.service';
 
 import LockScreen from "./LockScreen.vue";
@@ -151,9 +152,9 @@ const hasPicture = (now) => {
     lastDecodedFrames = frames;
 
     if (video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA || video.videoWidth === 0) return false;
-    if (!document.hidden && video.webkitVideoDecodedByteCount === 0) return false;
 
-    // While playing, sound running on without new picture frames means the picture is stuck.
+    // A paused video may not have decoded a single frame yet (newer Chrome waits for play),
+    // so frames are only judged while playing: sound running on without new frames means a stuck picture.
     return now - lastDecodeProgressAt < 1500;
 };
 
@@ -170,8 +171,11 @@ const switchToHlsIfUndecodable = (now) => {
         return;
     }
 
-    const undecodable = !!video.error || (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
-        && (video.videoWidth === 0 || video.webkitVideoDecodedByteCount === 0));
+    const hasData = video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+    // No frames is only a sign of trouble while playing; paused videos may not have decoded any yet.
+    if (hasData && video.videoWidth > 0 && video.paused && !video.error) return;
+
+    const undecodable = !!video.error || (hasData && (video.videoWidth === 0 || decodedFrames(video) === 0));
     if (!undecodable) {
         undecodableSince = null;
         return;
@@ -180,11 +184,13 @@ const switchToHlsIfUndecodable = (now) => {
     if (undecodableSince === null) undecodableSince = now;
     if (now - undecodableSince > 3000) {
         autoHlsTried = true;
-        LogService.warn('browser cannot decode the picture, switching HLS fix on automatically', {
-            ...diagnostics(),
-            error: video.error ? video.error.message : undefined,
+        const details = { ...diagnostics(), error: video.error ? video.error.message : undefined };
+        // The HLS fix runs through Stremio on this viewer's own computer; without it, it can only fail.
+        StremioService.isServerOpen().then(open => {
+            if (!open) return LogService.warn('browser cannot decode the picture, and Stremio is not running here for the HLS fix', details);
+            LogService.warn('browser cannot decode the picture, switching HLS fix on automatically', details);
+            store.dispatch('player/setHls', { enabled: true, src: props.options.src, playlist: props.options.hls });
         });
-        store.dispatch('player/setHls', { enabled: true, src: props.options.src, playlist: props.options.hls });
     }
 };
 
