@@ -19,15 +19,32 @@ class WS {
             client.sendEvent(new ReadyEvent(new User(client)));
             client.onMessage((data: string) => this.handleEvents(client, data));
             socket.on('close', () => this.removeClient(client));
+            // Browsers answer protocol pings themselves, even in background tabs where the
+            // page's own heartbeat timer gets slowed to about once a minute.
+            socket.on('pong', () => client.last_active = Date.now());
             this.clients.push(client);
             logger.info({ user: client.name }, 'connected');
         });
 
-        // Clean clients when inactive
-        setInterval(() => this.clients = this.clients.filter(c => (new Date().getTime() - c.last_active) < cleanInterval), cleanInterval);
+        // Close connections that stop answering pings. Closing (rather than just
+        // forgetting the client) lets the room drop them and the page notice;
+        // a forgotten-but-open connection could still send but never received
+        // room updates, leaving pages stuck on "loading the room".
+        setInterval(() => {
+            const now = Date.now();
+            this.clients.forEach(client => {
+                if (now - client.last_active > cleanInterval * 3) {
+                    logger.info({ room: client.room_id, user: client.name }, 'stopped answering, closing connection');
+                    client.terminate();
+                } else {
+                    client.ping();
+                }
+            });
+        }, cleanInterval);
     }
 
     private handleEvents(client: Client, data: string) {
+        client.last_active = Date.now();
         let event;
         try {
             event = JSON.parse(data);

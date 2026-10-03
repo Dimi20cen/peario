@@ -12,7 +12,10 @@ const ClientService = {
     connect(url) {
         this.socket = new WebSocket(url);
         this.socket.onopen = this._handleOpen.bind(this);
-        this.socket.onclose = () => this.events.emit('closed');
+        this.socket.onclose = () => {
+            clearInterval(this.heartbeat);
+            this.events.emit('closed');
+        };
         this.socket.onmessage = this._handleMessage.bind(this);
     },
 
@@ -49,6 +52,7 @@ const ClientService = {
     },
 
     send(type, payload) {
+        if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
         this.socket.send(JSON.stringify({ type, payload }));
     },
 

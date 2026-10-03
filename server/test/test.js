@@ -434,4 +434,22 @@ describe('Client', function() {
         });
     });
 
+    // Background tabs slow the page's own heartbeat to about once a minute; the
+    // connection must still count as alive (it answers protocol pings) and keep
+    // receiving room updates.
+    it('should keep sending room updates to a client that sends no heartbeat', function(done) {
+        this.timeout(15000);
+        createClient().then((client) => {
+            client.createRoom().then(({ id }) => {
+                setTimeout(() => {
+                    client.joinRoom(id).then((payload) => {
+                        assert.strictEqual(payload.id, id);
+                        client.close();
+                        done();
+                    });
+                }, 10000);
+            });
+        });
+    });
+
 });

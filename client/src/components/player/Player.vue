@@ -17,7 +17,7 @@
 
         <Subtitle v-if="videoRef" :timecode="currentTime" :controlsShown="!controlsHidden"></Subtitle>
 
-        <video ref="videoRef" :src="options.src" :poster="options.meta.background"
+        <video ref="videoRef" :src="options.startHls ? undefined : options.src" :poster="options.meta.background"
             @click="showControls"
             @timeupdate="updateCurrentTime"
             @waiting="() => updateBuffering(true)"
@@ -270,6 +270,17 @@ const onSubtitlesDropped = (event) => {
     }
 };
 
+// Streams this browser can't play (checked in Room before playback) start straight on the HLS fix,
+// so nothing starts with sound and no picture, or picture and no sound.
+const startHlsIfNeeded = () => {
+    const { startHls, src, hls: playlist } = props.options;
+    if (!startHls || !playlist || autoHlsTried || !videoRef.value) return;
+    autoHlsTried = true;
+    store.dispatch('player/setHls', { enabled: true, src, playlist });
+};
+
+watch(() => props.options.startHls, startHlsIfNeeded);
+
 onMounted(() => {
     store.commit('player/updateLockState', true);
     store.commit('player/updateVideo', videoRef.value);
@@ -278,6 +289,7 @@ onMounted(() => {
     videoRef.value.volume = volume.value;
 
     pictureInterval = setInterval(checkPicture, 500);
+    startHlsIfNeeded();
 });
 
 onUnmounted(() => {

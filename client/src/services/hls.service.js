@@ -96,9 +96,55 @@ class FragmentLoader extends Hls.DefaultConfig.loader {
     }
 }
 
+// How browsers name the codecs ffprobe reports, to ask them whether they can play each one.
+const VIDEO_TYPES = {
+    h264: 'video/mp4; codecs="avc1.640028"',
+    hevc: 'video/mp4; codecs="hvc1.1.6.L120.90"',
+    av1: 'video/mp4; codecs="av01.0.08M.08"',
+    vp9: 'video/webm; codecs="vp9"',
+    vp8: 'video/webm; codecs="vp8"',
+};
+const AUDIO_TYPES = {
+    aac: 'audio/mp4; codecs="mp4a.40.2"',
+    mp3: 'audio/mpeg',
+    opus: 'audio/webm; codecs="opus"',
+    vorbis: 'audio/webm; codecs="vorbis"',
+    flac: 'audio/flac',
+    ac3: 'audio/mp4; codecs="ac-3"',
+    eac3: 'audio/mp4; codecs="ec-3"',
+};
+const PLAYABLE_CONTAINERS = ['matroska', 'webm', 'mp4', 'mov'];
+
+const canPlay = type => !!type && document.createElement('video').canPlayType(type) !== '';
+
 const HlsService = {
 
     hls: null,
+
+    // Asks Stremio what's inside the file, and this browser whether it can play that.
+    // Resolves to null when the file couldn't be checked (playback then tries it directly).
+    async checkPlayable(mediaURL) {
+        try {
+            const query = new URLSearchParams([['mediaURL', mediaURL]]);
+            const response = await fetch(`${STREMIO_STREAMING_SERVER}/hlsv2/probe?${query.toString()}`, { signal: AbortSignal.timeout(8000) });
+            if (!response.ok) throw new Error(`status ${response.status}`);
+            const { format, streams } = await response.json();
+
+            const container = (format && format.name) || '';
+            const video = (streams.find(({ track }) => track === 'video') || {}).codec;
+            const audio = (streams.find(({ track }) => track === 'audio') || {}).codec;
+            const problems = [
+                !container.split(',').some(name => PLAYABLE_CONTAINERS.includes(name)) && `container ${container}`,
+                video && !canPlay(VIDEO_TYPES[video]) && `video ${video}`,
+                audio && !canPlay(AUDIO_TYPES[audio]) && `audio ${audio}`,
+            ].filter(problem => problem);
+
+            return { playable: !problems.length, problems, container, video, audio };
+        } catch (error) {
+            LogService.warn('could not check what the stream contains', { error: error.message });
+            return null;
+        }
+    },
 
     async createPlaylist(mediaURL) {
         const id = hat();

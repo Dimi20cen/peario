@@ -70,10 +70,14 @@ const syncRoom = async () => {
         // Offered for direct URLs too: browsers can't decode some audio codecs
         // (e.g. EAC3), and the HLS transcode is the only in-player way around it.
         const playlistUrl = await HlsService.createPlaylist(videoUrl);
+        const check = await HlsService.checkPlayable(videoUrl);
+        if (check) LogService.info(check.playable ? 'browser can play the stream' : 'browser cannot play the stream, starting with the HLS fix', { container: check.container, video: check.video, audio: check.audio, problems: check.problems.join(', ') || undefined });
+
         playerOptions.value = {
             ...playerOptions.value,
             src: videoUrl,
             hls: playlistUrl,
+            startHls: !!check && !check.playable,
         };
 
         initialized.value = true;

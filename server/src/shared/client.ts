@@ -25,7 +25,15 @@ class Client {
     }
 
     sendEvent({ type, payload }: ServerEvent) {
-        this.socket.send(JSON.stringify({ type, payload }));
+        if (this.socket.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify({ type, payload }));
+    }
+
+    ping() {
+        if (this.socket.readyState === WebSocket.OPEN) this.socket.ping();
+    }
+
+    terminate() {
+        this.socket.terminate();
     }
 
     resetCooldown() {
